@@ -1,0 +1,117 @@
+
+--------Checks if data was imported sucessfully from excel
+--Select Location, date, total_cases, new_cases, total_deaths, population
+--From ProfProject..CovidDeaths
+--order by 1,2
+
+----Looking at Total Cases vs Total Deaths
+--Select Location, date, total_cases, (total_deaths/total_cases)*100 as Death_Precentage
+--From ProfProject..CovidDeaths
+--order by 1,2
+
+----Looking at US Total Cases vs Death
+---- Shows likelihood of dying if you contract COVID in US
+--Select Location, date, total_cases, (total_deaths/total_cases)*100 as Death_Precentage
+--From ProfProject..CovidDeaths
+--Where location like '%States%'
+--order by 1,2
+
+--Looking at Cases per Population in US
+--Select Location, date,population, total_cases, (total_cases/population)*100 as Case_Per_Pop_Precentage
+--From ProfProject..CovidDeaths
+--Where location like '%States%'
+--order by 1,2
+
+----Looking at Countries with Highest Infection rate compared to Population
+--Select Location, population, Max(total_cases) as HighestInfectCount, Max((total_cases/population))*100 as Case_Per_Pop_Precentage
+--From ProfProject..CovidDeaths
+--Group by Location, Population
+--order by Case_Per_Pop_Precentage Desc
+
+----Looking at nations  with Highest death count
+--Select Location, Max(cast(total_deaths as int)) as Total_Deaths
+--From ProfProject..CovidDeaths
+--Where continent is not null
+--Group by Location
+
+--Looking at continets with highest death count
+--Select location, Max(cast(total_deaths as int)) as TotalDeathCount
+--From ProfProject..CovidDeaths
+--Where continent is  null
+--Group by location
+--order by TotalDeathCount desc
+
+--  
+--Select date, SUM(new_cases) as TotalCases, SUM(cast(new_deaths as int)) as TotalDeaths, Sum(cast(new_deaths as int))/Sum(new_cases)*100 as DeathPrecentage
+--From ProfProject..CovidDeaths
+--where continent is not null
+--Group by date
+
+
+----Global Numbers
+--Select Sum(new_cases) as totalcases, Sum(cast(new_deaths as int)) as total_deaths, sum(cast(new_deaths as int))/sum(new_cases)*100 as DeathPrecentage
+--From ProfProject..CovidDeaths
+--where continent is not null
+--order by 1,2
+
+--total population vs Vac
+--Select dea.continent, dea.location,dea.date,dea.population,vac.new_vaccinations
+--From ProfProject..CovidDeaths dea
+--Join ProfProject..CovidVac vac
+--	on dea.location = vac.location
+--	and dea.date = vac.date
+--Where dea.date is not null and dea.continent is not null
+--order by 2,3
+
+-- Use CTE
+--With PopsVac (continet, location, Date, Population,new_vaccinations, RollingPeopleVaccinated)
+--as 
+--(
+--Select dea.continent, dea.location,dea.date,dea.population,vac.new_vaccinations
+--, Sum(Convert(int, vac.new_vaccinations)) Over (Partition by dea.location Order by dea.location,
+--dea.date) as RollingVaccinations
+--From ProfProject..CovidDeaths dea
+--Join ProfProject..CovidVac vac
+--	on dea.location = vac.location
+--	and dea.date = vac.date
+--Where dea.continent is not null
+--)
+--Select *, (RollingPeopleVaccinated/Population)*100 As PrecentageVaccinated
+--From PopsVac
+
+
+----- Temp table
+--DROP Table if exists #PercentPopulationVaccinated
+--Create Table #PercentPopulationVaccinated
+--(
+--continent nvarchar(255),
+--location nvarchar(255),
+--date datetime,
+--population numeric,
+--new_vaccinations numeric,
+--RollingPeopleVaccinated numeric
+--)
+
+--Insert into #PercentPopulationVaccinated 
+--Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+--, SUM(CONVERT(int,vac.new_vaccinations)) OVER (Partition by dea.Location Order by dea.location, dea.Date) as RollingPeopleVaccinated
+--From ProfProject.. CovidDeaths dea	
+--Join ProfProject..CovidVac vac
+--	On dea.location = vac.location
+--	and dea.date = vac.date
+--Where dea.continent is not null
+
+
+--Select * , (RollingPeopleVaccinated/population) * 100
+--From #PercentPopulationVaccinated
+
+-- Creating View to store data for later visualization
+
+Create View  PrecentPopulationVaccinated as
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
+Sum(convert(int,new_vaccinations)) Over (Partition by dea.location, dea.Date) as RollingPeopleVaccinated
+From ProfProject..CovidDeaths dea
+Join ProfProject..CovidVac vac
+	On dea.location = vac.location
+	and dea.date = vac.date
+	where dea.continent is not
